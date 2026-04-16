@@ -1,0 +1,76 @@
+services:
+
+  # ── PostgreSQL（含 pgvector） ──────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: jchatmind-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: jchatmind
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sh:/docker-entrypoint-initdb.d/00_init.sh
+      - ./docker/jchatmind.sql:/docker-entrypoint-initdb.d/jchatmind.sql
+      - ./docker/eshop.sql:/docker-entrypoint-initdb.d/eshop.sql
+      - ./docker/eshop_data.sql:/docker-entrypoint-initdb.d/eshop_data.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jchatmind"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Ollama（复用本地已下载的模型） ────────────────────────────────────
+  ollama:
+    image: ollama/ollama
+    container_name: jchatmind-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ${HOME}/.ollama:/root/.ollama   # 挂载本地模型，避免重新下载
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+
+  # ── 后端（Spring Boot） ────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./jchatmind
+      dockerfile: Dockerfile
+    container_name: jchatmind-backend
+    ports:
+      - "8080:8080"
+    environment:
+      # 数据库
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jchatmind
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 123456
+      # Ollama
+      OLLAMA_BASE_URL: http://ollama:11434
+      # LLM API Key（填写至少一个）
+      SPRING_AI_DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-your-deepseek-api-key}
+      SPRING_AI_ZHIPUAI_API_KEY: ${ZHIPUAI_API_KEY:-your-zhipuai-api-key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+  # ── 前端（React + Nginx） ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: jchatmind-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
