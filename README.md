@@ -2,6 +2,16 @@
 
 基于 **Spring AI** 构建的 AI Agent 平台。支持自定义智能体、知识库（RAG）、工具调用、SSE 实时推送，一键 Docker 部署。
 
+## 📸 界面预览
+
+![Agent 对话](assets/screenshot-chat1.png)
+
+![工具调用过程](assets/screenshot-chat2.png)
+
+![Agent 管理](assets/screenshot-agent.png)
+
+![知识库管理](assets/screenshot-kb.png)
+
 ## ✨ 功能特性
 
 - **自定义 Agent** — 配置名称、系统提示词、模型、工具、知识库，支持多 Agent 管理
